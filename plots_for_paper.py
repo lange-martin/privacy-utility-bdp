@@ -161,9 +161,9 @@ def gaussian_utility_reverse_axes(ns, save=False):
         hs = (n ** 2 / (4 * ((1 / rhos) - n + 2))) + 1
         hs[hs < 0] = np.repeat(n, len(hs[hs < 0]))
         hs = np.minimum(hs, n)
-        plt.plot(rhos, hs, linestyle=LINES[i], color=COLORS[i], label=f'n = {n}')
+        plt.plot(rhos, hs, linestyle=LINES[i], linewidth=4, color=COLORS[i], label=f'n = {n}')
 
-    plt.legend(fontsize=15, loc='upper right')
+    plt.legend(fontsize=20, loc='upper right')
     plt.grid(visible=True)
     if save:
         plt.savefig(f'figures/gaussian_utility_reverse_axes.pdf', bbox_inches='tight')
