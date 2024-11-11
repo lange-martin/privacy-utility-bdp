@@ -4,6 +4,7 @@ import numpy as np
 COLORS = ["red", "green", "blue", "orange", "purple", "cyan"]
 MARKERS = ['x', '.', '+', '1']
 LINES = ['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 10)), (0, (5, 10))]
+HATCHES = ['||', '//', '--']
 
 
 def plot_setup(max_y, min_y=0.0, max_x=1.0, min_x=0.0, x_label='ρ', y_label='BDPL', y_rot='vertical', x_scale='linear',
@@ -30,29 +31,25 @@ def gaussian_new_bound(n, b_minus_a=1, d_privacy_eps=1):
     rhos = np.linspace(0.0, max_rho, 1000)
     bdpls = (((n / 2) ** 2 / ((1 / rhos) - n + 2)) + 1) * b_minus_a * d_privacy_eps
 
-    if n == 7:
-        plt.xticks(ticks=[0.0, 0.05, 0.1, 0.15, 0.2])
-    elif n == 5:
-        plt.xticks(ticks=[0.0, 0.1, 0.2, 0.3])
-
     return rhos, bdpls
 
 
 # Plot Gaussian bound and general bound
-def gaussian_bounds(n, max_y, b_minus_a=1, d_privacy_eps=1, legend=False, save=False):
-    max_rho = 1.0 / (n - 2)
+def gaussian_bounds(ns, max_y, b_minus_a=1, d_privacy_eps=1, legend=False, save=False):
+    max_rho = 1.0 / (np.amin(np.array(ns)) - 2)
     plot_setup(max_y, max_x=max_rho, x_label="ρ", y_label="BDPL", fontsize=25)
 
-    new_xs, new_ys = gaussian_new_bound(n, b_minus_a, d_privacy_eps)
-    plt.plot(new_xs, new_ys, color=COLORS[0], linestyle=LINES[0], linewidth=4, label='Gaussian bound')
-    old_xs, old_ys = gaussian_general_bound(n, b_minus_a, d_privacy_eps)
-    plt.plot(old_xs, old_ys, color=COLORS[1], linestyle=LINES[1], linewidth=4, label='General bound')
+    for i, n in enumerate(ns):
+        new_xs, new_ys = gaussian_new_bound(n, b_minus_a, d_privacy_eps)
+        plt.plot(new_xs, new_ys, color=COLORS[i], linestyle=LINES[0], linewidth=3, label=f'Gaussian bound; n = {n}')
+        old_xs, old_ys = gaussian_general_bound(n, b_minus_a, d_privacy_eps)
+        plt.plot(old_xs, old_ys, color=COLORS[i], linestyle=LINES[1], linewidth=3, label=f'General bound; n = {n}')
 
     plt.grid(visible=True)
     if legend:
-        plt.legend(fontsize=25)
+        plt.legend(fontsize=25, bbox_to_anchor=(1.05, 1.0))
     if save:
-        plt.savefig(f'figures/gaussian_bound_n_{n}.pdf', bbox_inches='tight')
+        plt.savefig(f'figures/gaussian_bound_ns_{ns}.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -64,11 +61,11 @@ def markov_bounds_new(max_y, legend=False, save=False):
 
     epsilons = np.linspace(0, 5, 1000)
     general_bound = epsilons * n
-    plt.plot(epsilons, general_bound, color=COLORS[0], linestyle=LINES[0], linewidth=4, label='General bound')
+    plt.plot(epsilons, general_bound, color=COLORS[0], linestyle=LINES[0], linewidth=3, label='General bound')
 
     for i, gamma in enumerate(gammas):
         markov_chain_bound = epsilons + 4 * np.log(gamma)
-        plt.plot(epsilons, markov_chain_bound, color=COLORS[i+1], linestyle=LINES[i+1], linewidth=4,
+        plt.plot(epsilons, markov_chain_bound, color=COLORS[i+1], linestyle=LINES[i+1], linewidth=3,
                  label=f'Markov chain bound; γ = {gamma}')
 
     plt.grid(visible=True)
@@ -86,7 +83,7 @@ def arbitrary_utility(save=False):
     bdp_epsilons = np.linspace(0.0, 5.0, 1000)
     betas = 1.0 / (np.exp(bdp_epsilons) + 1)
 
-    plt.plot(bdp_epsilons, betas, color=COLORS[0], linewidth=4)
+    plt.plot(bdp_epsilons, betas, color=COLORS[0], linewidth=3)
     plt.grid(visible=True, which='both')
     if save:
         plt.savefig(f'figures/arbitrary_bound.pdf', bbox_inches='tight')
@@ -110,16 +107,17 @@ def markov_bounds(ns, dp_epsilon):
 
 
 # Values of n and ratio γ where the new Markov chain bound improves over general bound.
-def markov_new_bound_better(dp_epsilon, max_n=100, save=False):
+def markov_new_bound_better(dp_epsilons, max_n=100, save=False):
     plot_setup(max_y=10000, min_y=1, max_x=max_n, min_x=0, x_label='n', y_label='γ', y_scale='log', y_rot='horizontal')
 
     ns = np.linspace(1, max_n, 1000)
-    alphas = np.exp(((ns - 1)/4) * dp_epsilon)
+    for i, dp_epsilon in enumerate(dp_epsilons):
+        alphas = np.exp(((ns - 1)/4) * dp_epsilon)
+        plt.fill_between(ns, alphas, facecolor='none', hatch=HATCHES[i], edgecolor=COLORS[i], linewidth=3, label=f'ε = {dp_epsilon}')
 
-    plt.fill_between(ns, alphas, facecolor='none', hatch='||', edgecolor=COLORS[0])
-
+    plt.legend(fontsize=20, bbox_to_anchor=(1.5, 1.0))
     if save:
-        plt.savefig(f'figures/markov_bound_improvement_epsilon_{dp_epsilon}.pdf', bbox_inches='tight')
+        plt.savefig(f'figures/markov_bound_improvement_epsilons_{dp_epsilons}.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -145,10 +143,10 @@ def markov_utility_reverse_axes(dp_epsilons, save=False):
     for i, dp_epsilon in enumerate(dp_epsilons):
         hs = 1. / (1. - (4 * np.log(gammas) / dp_epsilon))
         hs = hs[hs >= 0]
-        plt.plot(gammas[:len(hs)], hs, linestyle=LINES[i], color=COLORS[i], label=f"ε = {dp_epsilon}")
+        plt.plot(gammas[:len(hs)], hs, linestyle=LINES[i], color=COLORS[i], linewidth=3, label=f"ε = {dp_epsilon}")
 
 
-    plt.legend(fontsize=15, loc='upper right')
+    plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1.0))
     if save:
         plt.savefig(f'figures/markov_utility_eps_{dp_epsilons}_reverse_axes.pdf', bbox_inches='tight')
     plt.show()
@@ -159,11 +157,10 @@ def gaussian_utility_reverse_axes(ns, save=False):
     rhos = np.linspace(0, 1, 1000)
     for i, n in enumerate(ns):
         hs = (n ** 2 / (4 * ((1 / rhos) - n + 2))) + 1
-        hs[hs < 0] = np.repeat(n, len(hs[hs < 0]))
-        hs = np.minimum(hs, n)
-        plt.plot(rhos, hs, linestyle=LINES[i], linewidth=4, color=COLORS[i], label=f'n = {n}')
+        hs = hs[hs >= 0]
+        plt.plot(rhos[:len(hs)], hs, linestyle=LINES[i], linewidth=3, color=COLORS[i], label=f'n = {n}')
 
-    plt.legend(fontsize=20, loc='upper right')
+    plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1.0))
     plt.grid(visible=True)
     if save:
         plt.savefig(f'figures/gaussian_utility_reverse_axes.pdf', bbox_inches='tight')
@@ -190,7 +187,7 @@ def arbitrary_prob_error_greater_than_half_dataset(save=False):
     plot_setup(max_y=1, min_y=0, max_x=5, min_x=0, x_label='ε', y_label='β', y_rot='horizontal')
     epsilons = np.linspace(0, 5, 1000)
     betas = np.exp(-epsilons/2)
-    plt.plot(epsilons, betas, color=COLORS[0], linewidth=4)
+    plt.plot(epsilons, betas, color=COLORS[0], linewidth=3)
 
     plt.grid(visible=True)
     if save:
@@ -199,26 +196,12 @@ def arbitrary_prob_error_greater_than_half_dataset(save=False):
 
 
 if __name__ == "__main__":
-    SAVE = False
+    SAVE = True
 
-    markov_bounds_new(max_y=1000, legend=True, save=SAVE)
+    gaussian_bounds([3, 5, 7], 10, legend=True, save=SAVE)
 
-    arbitrary_prob_error_greater_than_half_dataset(SAVE)
-    arbitrary_utility(save=SAVE)
-    #arbitrary_laplace([2, 5, 10, 100], beta=0.01)
-    #arbitrary_laplace([2, 5, 10, 100], beta=0.1)
-    #arbitrary_laplace([2, 5, 10, 100], beta=0.5)
+    markov_new_bound_better(dp_epsilons=[0.5, 1.0, 2.0], save=SAVE)
 
-    gaussian_bounds(3, 10, legend=True, save=SAVE)
-    gaussian_bounds(5, 10, legend=False, save=SAVE)
-    gaussian_bounds(7, 10, save=SAVE)
-
-    markov_new_bound_better(dp_epsilon=0.5, save=SAVE)
-    markov_new_bound_better(dp_epsilon=1.0, save=SAVE)
-    markov_new_bound_better(dp_epsilon=2.0, save=SAVE)
-    #markov_bounds(ns=[5, 10, 15], dp_epsilon=3)
-
-    markov_utility(dp_epsilons=[0.5, 1, 2, 5, 10, 20], save=SAVE)
     markov_utility_reverse_axes(dp_epsilons=[0.5, 1, 2, 5, 10, 20], save=SAVE)
 
     gaussian_utility_reverse_axes(ns=[3, 6, 12, 24], save=SAVE)
