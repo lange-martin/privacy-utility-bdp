@@ -156,9 +156,11 @@ def markov_utility_reverse_axes(dp_epsilons, save=False):
 def gaussian_utility_reverse_axes(ns, save=False):
     plot_setup(max_y=10, min_y=1, max_x=1, min_x=0, x_label='ρ', y_label='h', y_rot='horizontal')
 
+    rhos = np.linspace(0, 1, 1000)
     for i, n in enumerate(ns):
-        rhos = np.linspace(0, 1./(n-2), 1000)
         hs = (n ** 2 / (4 * ((1 / rhos) - n + 2))) + 1
+        hs[hs < 0] = np.repeat(n, len(hs[hs < 0]))
+        hs = np.minimum(hs, n)
         plt.plot(rhos, hs, linestyle=LINES[i], color=COLORS[i], label=f'n = {n}')
 
     plt.legend(fontsize=15, loc='upper right')
@@ -218,5 +220,7 @@ if __name__ == "__main__":
 
     markov_utility(dp_epsilons=[0.5, 1, 2, 5, 10, 20], save=SAVE)
     markov_utility_reverse_axes(dp_epsilons=[0.5, 1, 2, 5, 10, 20], save=SAVE)
+
+    gaussian_utility_reverse_axes(ns=[3, 6, 12, 24], save=SAVE)
 
     # Utility experiment results are directly plotted in the utility_experiment.py file
