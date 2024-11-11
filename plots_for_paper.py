@@ -154,22 +154,18 @@ def markov_utility_reverse_axes(dp_epsilons, save=False):
     plt.show()
 
 def gaussian_utility_reverse_axes(ns, save=False):
-    for n in ns:
-        plot_setup(max_y=10, min_y=1, max_x=1./(n-2), min_x=0, x_label='ρ', y_label='h', y_rot='horizontal')
+    plot_setup(max_y=10, min_y=1, max_x=1, min_x=0, x_label='ρ', y_label='h', y_rot='horizontal')
 
+    for i, n in enumerate(ns):
         rhos = np.linspace(0, 1./(n-2), 1000)
         hs = (n ** 2 / (4 * ((1 / rhos) - n + 2))) + 1
-        plt.plot(rhos, hs, linestyle=LINES[0], color=COLORS[0])
+        plt.plot(rhos, hs, linestyle=LINES[i], color=COLORS[i], label=f'n = {n}')
 
-        if n == 7:
-            plt.xticks(ticks=[0.0, 0.05, 0.1, 0.15, 0.2])
-        elif n == 5:
-            plt.xticks(ticks=[0.0, 0.1, 0.2, 0.3])
-
-        plt.grid(visible=True)
-        if save:
-            plt.savefig(f'figures/gaussian_utility_n_{n}_reverse_axes.pdf', bbox_inches='tight')
-        plt.show()
+    plt.legend(fontsize=15, loc='upper right')
+    plt.grid(visible=True)
+    if save:
+        plt.savefig(f'figures/gaussian_utility_reverse_axes.pdf', bbox_inches='tight')
+    plt.show()
 
 # alpha, beta accuracy of laplace algorithm for BDP for arbitrary correlation
 def arbitrary_laplace(ms, beta, save=False):
