@@ -115,8 +115,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     resolution = 20
 
     epsilons = np.linspace(1.0, 20.0, resolution)
-    rmses = np.empty((resolution, len(private_queries)))
-    standard_errors = np.empty((resolution, len(private_queries)))
+    mae = np.empty((resolution, len(private_queries)))
     success = np.empty((resolution, len(private_queries))).astype(bool)
     real_results = non_private_query(datasets)
     print(f"Average result from deterministic query: {np.mean(real_results)}")
@@ -133,10 +132,8 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
                 # Here we calculate the upper limit of the 95%-confidence interval of absolute errors
                 abs_error_95[i, k] = np.quantile(np.abs(error_results), q=0.95)
 
-                # Here we calculate the squared error
-                squared_errors = error_results ** 2
-                rmses[i, k] = np.sqrt(np.mean(squared_errors))
-                standard_errors[i, k] = np.std(squared_errors, ddof=1) / np.sqrt(np.size(squared_errors))
+                # Here we calculate the mean absolute error
+                mae[i, k] = np.mean(np.abs(error_results))
                 success[i, k] = True
             except ValueError:
                 success[i, k] = False
@@ -165,16 +162,16 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     if show_plot:
         plt.show()
 
-    # This is the RMSE plot
+    # This is the MAE plot
     for i in range(len(private_queries)):
-        plt.scatter(epsilons[success[:, i]], rmses[success[:, i], i],
+        plt.scatter(epsilons[success[:, i]], mae[success[:, i], i],
                      label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
 
     if show_legend:
         plt.legend(loc=legend_loc, fontsize=20)
     plt.xlabel('ε', fontsize=20)
     plt.yscale('log')
-    plt.ylabel('RMSE', fontsize=20)
+    plt.ylabel('MAE', fontsize=20)
     plt.xticks(fontsize=20, ticks=[2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
     plt.yticks(fontsize=20)
     plt.grid(visible=True, axis='both')
@@ -182,7 +179,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     if min_y is not None and max_y is not None:
         plt.ylim((min_y * 0.1, max_y))
     if SAVE and name is not None:
-        plt.savefig(f'figures/{name}_RMSE.pdf', bbox_inches='tight')
+        plt.savefig(f'figures/{name}_MAE.pdf', bbox_inches='tight')
     if show_plot:
         plt.show()
 
