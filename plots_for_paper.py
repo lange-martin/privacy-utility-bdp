@@ -37,13 +37,13 @@ def gaussian_new_bound(n, b_minus_a=1, d_privacy_eps=1):
 # Plot Gaussian bound and general bound
 def gaussian_bounds(ns, max_y, b_minus_a=1, d_privacy_eps=1, legend=False, save=False):
     max_rho = 1.0 / (np.amin(np.array(ns)) - 2)
-    plot_setup(max_y, max_x=max_rho, x_label="ρ", y_label="BDPL", fontsize=25)
+    plot_setup(max_y, max_x=max_rho, x_label="$\\rho$", y_label="BDPL", fontsize=25)
 
     for i, n in enumerate(ns):
         new_xs, new_ys = gaussian_new_bound(n, b_minus_a, d_privacy_eps)
-        plt.plot(new_xs, new_ys, color=COLORS[i], linestyle=LINES[0], linewidth=3, label=f'Gaussian bound; n = {n}')
+        plt.plot(new_xs, new_ys, color=COLORS[i], linestyle=LINES[0], linewidth=3, label=f'Gaussian bound; $n = {int(n)}$')
         old_xs, old_ys = gaussian_general_bound(n, b_minus_a, d_privacy_eps)
-        plt.plot(old_xs, old_ys, color=COLORS[i], linestyle=LINES[1], linewidth=3, label=f'General bound; n = {n}')
+        plt.plot(old_xs, old_ys, color=COLORS[i], linestyle=LINES[1], linewidth=3, label=f'General bound; $n = {int(n)}$')
 
     if legend:
         plt.legend(fontsize=25, bbox_to_anchor=(1.05, 1.0))
@@ -105,12 +105,12 @@ def markov_bounds(ns, dp_epsilon):
 
 # Values of n and ratio γ where the new Markov chain bound improves over general bound.
 def markov_new_bound_better(dp_epsilons, max_n=100, save=False):
-    plot_setup(max_y=10000, min_y=1, max_x=max_n, min_x=0, x_label='n', y_label='γ', y_scale='log', y_rot='horizontal')
+    plot_setup(max_y=10000, min_y=1, max_x=max_n, min_x=0, x_label='$n$', y_label='$\\gamma$', y_scale='log', y_rot='horizontal')
 
     ns = np.linspace(1, max_n, 1000)
     for i, dp_epsilon in enumerate(dp_epsilons):
         alphas = np.exp(((ns - 1)/4) * dp_epsilon)
-        plt.fill_between(ns, alphas, facecolor='none', hatch=HATCHES[i], edgecolor=COLORS[i], linewidth=3, label=f'ε = {dp_epsilon}')
+        plt.fill_between(ns, alphas, facecolor='none', hatch=HATCHES[i], edgecolor=COLORS[i], linewidth=3, label=f'$\\varepsilon = {dp_epsilon}$')
 
     plt.legend(fontsize=20, bbox_to_anchor=(1.5, 1.0))
     if save:
@@ -133,13 +133,13 @@ def markov_utility(dp_epsilons, save=False):
     plt.show()
 
 def markov_utility_reverse_axes(dp_epsilons, save=False):
-    plot_setup(max_y=10, min_y=1, max_x=100, min_x=1, x_label='γ', y_label='h', y_rot='horizontal', x_scale='log')
+    plot_setup(max_y=10, min_y=1, max_x=100, min_x=1, x_label='$\\gamma$', y_label='$h$', y_rot='horizontal', x_scale='log')
 
     gammas = np.logspace(0, 2, 1000)
     for i, dp_epsilon in enumerate(dp_epsilons):
         hs = 1. / (1. - (4 * np.log(gammas) / dp_epsilon))
         hs = hs[hs >= 0]
-        plt.plot(gammas[:len(hs)], hs, linestyle=LINES[i], color=COLORS[i], linewidth=3, label=f"ε = {dp_epsilon}")
+        plt.plot(gammas[:len(hs)], hs, linestyle=LINES[i], color=COLORS[i], linewidth=3, label=f"$\\varepsilon = {dp_epsilon}$")
 
 
     plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1.0))
@@ -148,13 +148,13 @@ def markov_utility_reverse_axes(dp_epsilons, save=False):
     plt.show()
 
 def gaussian_utility_reverse_axes(ns, save=False):
-    plot_setup(max_y=10, min_y=1, max_x=1, min_x=0, x_label='ρ', y_label='h', y_rot='horizontal')
+    plot_setup(max_y=10, min_y=1, max_x=1, min_x=0, x_label='$\\rho$', y_label='$h$', y_rot='horizontal')
 
     rhos = np.linspace(0, 1, 1000)
     for i, n in enumerate(ns):
         hs = (n ** 2 / (4 * ((1 / rhos) - n + 2))) + 1
         hs = hs[hs >= 0]
-        plt.plot(rhos[:len(hs)], hs, linestyle=LINES[i], linewidth=3, color=COLORS[i], label=f'n = {n}')
+        plt.plot(rhos[:len(hs)], hs, linestyle=LINES[i], linewidth=3, color=COLORS[i], label=f'$n = {int(n)}$')
 
     plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1.0))
     if save:
@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
     gaussian_bounds([3, 5, 7], 10, legend=True, save=SAVE)
 
-    markov_new_bound_better(dp_epsilons=[0.5, 1.0, 2.0], save=SAVE)
+    markov_new_bound_better(dp_epsilons=[0.5, 1, 2], save=SAVE)
 
     markov_utility_reverse_axes(dp_epsilons=[0.5, 1, 2, 5, 10, 20], save=SAVE)
 
