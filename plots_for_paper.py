@@ -45,7 +45,6 @@ def gaussian_bounds(ns, max_y, b_minus_a=1, d_privacy_eps=1, legend=False, save=
         old_xs, old_ys = gaussian_general_bound(n, b_minus_a, d_privacy_eps)
         plt.plot(old_xs, old_ys, color=COLORS[i], linestyle=LINES[1], linewidth=3, label=f'General bound; n = {n}')
 
-    plt.grid(visible=True)
     if legend:
         plt.legend(fontsize=25, bbox_to_anchor=(1.05, 1.0))
     if save:
@@ -68,7 +67,6 @@ def markov_bounds_new(max_y, legend=False, save=False):
         plt.plot(epsilons, markov_chain_bound, color=COLORS[i+1], linestyle=LINES[i+1], linewidth=3,
                  label=f'Markov chain bound; γ = {gamma}')
 
-    plt.grid(visible=True)
     if legend:
         plt.legend(loc="upper center", bbox_to_anchor=(1.75, 1.0), fontsize=20)
     if save:
@@ -84,7 +82,6 @@ def arbitrary_utility(save=False):
     betas = 1.0 / (np.exp(bdp_epsilons) + 1)
 
     plt.plot(bdp_epsilons, betas, color=COLORS[0], linewidth=3)
-    plt.grid(visible=True, which='both')
     if save:
         plt.savefig(f'figures/arbitrary_bound.pdf', bbox_inches='tight')
     plt.show()
@@ -131,7 +128,6 @@ def markov_utility(dp_epsilons, save=False):
         plt.plot(hs, gammas, linestyle=LINES[i], color=COLORS[i], label=f"ε = {dp_epsilon}")
 
     plt.legend(fontsize=15, loc='upper right')
-    #plt.grid(visible=True, axis='y', which='both')
     if save:
         plt.savefig(f'figures/markov_utility_eps_{dp_epsilons}.pdf', bbox_inches='tight')
     plt.show()
@@ -161,7 +157,6 @@ def gaussian_utility_reverse_axes(ns, save=False):
         plt.plot(rhos[:len(hs)], hs, linestyle=LINES[i], linewidth=3, color=COLORS[i], label=f'n = {n}')
 
     plt.legend(fontsize=20, bbox_to_anchor=(1.05, 1.0))
-    plt.grid(visible=True)
     if save:
         plt.savefig(f'figures/gaussian_utility_reverse_axes.pdf', bbox_inches='tight')
     plt.show()
@@ -189,14 +184,13 @@ def arbitrary_prob_error_greater_than_half_dataset(save=False):
     betas = np.exp(-epsilons/2)
     plt.plot(epsilons, betas, color=COLORS[0], linewidth=3)
 
-    plt.grid(visible=True)
     if save:
         plt.savefig(f'figures/arbitrary_counting_query_large_error.pdf', bbox_inches='tight')
     plt.show()
 
 
 if __name__ == "__main__":
-    SAVE = True
+    SAVE = False
 
     gaussian_bounds([3, 5, 7], 10, legend=True, save=SAVE)
 
