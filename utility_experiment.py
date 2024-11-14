@@ -235,7 +235,6 @@ def experiment_for_gaussian():
             full_dataset.append(row['mother'])
             families_already_seen.add(row['family'])
     trio_datasets = np.array(trio_datasets)
-    full_datasets = np.tile(np.array(full_dataset), (1000, 1))
     # Calculate maximum empirical Pearson correlation coefficient
     corr_matrix = np.corrcoef(trio_datasets.T)
     print("Pearson correlation coefficients")
@@ -247,8 +246,6 @@ def experiment_for_gaussian():
     run_experiment(trio_datasets, sum, [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
                    ["General bound", "Gaussian bound", "DP Query"], min_value=60, max_value=80, max_rho=max_rho,
                    name='mse_gaussian_trios')
-    run_experiment(full_datasets, sum, [sum_bdp_general_bound], ["General bound"], min_value=60, max_value=80,
-                   m=largest_family_size, name='mse_gaussian_all')
 
 
 if __name__ == "__main__":
