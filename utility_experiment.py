@@ -115,7 +115,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     resolution = 20
 
     epsilons = np.linspace(1.0, 20.0, resolution)
-    mae = np.empty((resolution, len(private_queries)))
+    MAPE = np.empty((resolution, len(private_queries)))
     success = np.empty((resolution, len(private_queries))).astype(bool)
     real_results = non_private_query(datasets)
     print(f"Average result from deterministic query: {np.mean(real_results)}")
@@ -132,8 +132,8 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
                 # Here we calculate the upper limit of the 95%-confidence interval of absolute errors
                 abs_error_95[i, k] = np.quantile(np.abs(error_results), q=0.95)
 
-                # Here we calculate the mean absolute error
-                mae[i, k] = np.mean(np.abs(error_results))
+                # Here we calculate the mean absolute percentage error
+                MAPE[i, k] = np.mean(np.abs(np.divide(error_results, real_results)))
                 success[i, k] = True
             except ValueError:
                 success[i, k] = False
@@ -162,24 +162,22 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     if show_plot:
         plt.show()
 
-    # This is the MAE plot
+    # This is the MAPE plot
     for i in range(len(private_queries)):
-        plt.scatter(epsilons[success[:, i]], mae[success[:, i], i],
+        plt.scatter(epsilons[success[:, i]], MAPE[success[:, i], i],
                      label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
 
     if show_legend:
         plt.legend(loc=legend_loc, fontsize=20)
     plt.xlabel('ε', fontsize=20)
     plt.yscale('log')
-    plt.ylabel('MAE', fontsize=20)
+    plt.ylabel('MAPE', fontsize=20)
     plt.xticks(fontsize=20, ticks=[2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
     plt.yticks(fontsize=20)
     plt.grid(visible=True, axis='both')
     plt.gca().set_axisbelow(True)
-    if min_y is not None and max_y is not None:
-        plt.ylim((min_y * 0.1, max_y))
     if SAVE and name is not None:
-        plt.savefig(f'figures/{name}_MAE.pdf', bbox_inches='tight')
+        plt.savefig(f'figures/{name}_MAPE.pdf', bbox_inches='tight')
     if show_plot:
         plt.show()
 
@@ -196,8 +194,8 @@ def experiment_for_markov_chain():
 
     run_experiment(np_datasets, count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["", "", ""], show_legend=False, trans_probs=probs, legend_loc='best', min_y=1e-1, max_y=1e5,
-                   name='mse_markov_total_ALT')
+                   ["", "", ""], show_legend=False, trans_probs=probs, min_y=1e-1, max_y=1e5,
+                   name='mape_markov_total_ALT')
 
     # Split dataframe into many dataframes, one per day
     data_per_day = [x for _, x in activity_data.groupby(['date'])]
@@ -208,8 +206,8 @@ def experiment_for_markov_chain():
 
     run_experiment(np_datasets, count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound", "Markov Chain Bound", "DP Query"], trans_probs=probs, legend_loc='best', min_y=1e-1,
-                   max_y=1e5, name='mse_markov_per_day_ALT')
+                   ["General Bound", "Markov Chain Bound", "DP Query"], trans_probs=probs, min_y=1e-1,
+                   max_y=1e5, name='mape_markov_per_day_ALT', show_legend=False)
 
 
 # Load data and execute experiment for Gaussian data
@@ -245,7 +243,7 @@ def experiment_for_gaussian():
 
     run_experiment(trio_datasets, sum, [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
                    ["General bound", "Gaussian bound", "DP Query"], min_value=60, max_value=80, max_rho=max_rho,
-                   name='mse_gaussian_trios')
+                   name='mape_gaussian_trios')
 
 
 if __name__ == "__main__":
