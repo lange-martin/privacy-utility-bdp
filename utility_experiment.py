@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
@@ -158,6 +160,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     if min_y is not None and max_y is not None:
         plt.ylim((min_y, max_y))
     if SAVE and name is not None:
+        os.makedirs('figures', exist_ok=True)
         plt.savefig(f'figures/{name}_confidence_interval.pdf', bbox_inches='tight')
     if show_plot:
         plt.show()
@@ -177,6 +180,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     plt.grid(visible=True, axis='both')
     plt.gca().set_axisbelow(True)
     if SAVE and name is not None:
+        os.makedirs('figures', exist_ok=True)
         plt.savefig(f'figures/{name}_MAPE.pdf', bbox_inches='tight')
     if show_plot:
         plt.show()
@@ -195,7 +199,7 @@ def experiment_for_markov_chain():
     run_experiment(np_datasets, count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
                    ["", "", ""], show_legend=False, trans_probs=probs, min_y=1e-1, max_y=1e5,
-                   name='mape_markov_total_ALT')
+                   name='markov_total')
 
     # Split dataframe into many dataframes, one per day
     data_per_day = [x for _, x in activity_data.groupby(['date'])]
@@ -207,7 +211,7 @@ def experiment_for_markov_chain():
     run_experiment(np_datasets, count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
                    ["General Bound", "Markov Chain Bound", "DP Query"], trans_probs=probs, min_y=1e-1,
-                   max_y=1e5, name='mape_markov_per_day_ALT', show_legend=False)
+                   max_y=1e5, name='markov_per_day', show_legend=False)
 
 
 # Load data and execute experiment for Gaussian data
@@ -243,11 +247,11 @@ def experiment_for_gaussian():
 
     run_experiment(trio_datasets, sum, [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
                    ["General bound", "Gaussian bound", "DP Query"], min_value=60, max_value=80, max_rho=max_rho,
-                   name='mape_gaussian_trios')
+                   name='gaussian_trios')
 
 
 if __name__ == "__main__":
-    SAVE = False
+    SAVE = True
     experiment_for_markov_chain()
     experiment_for_gaussian()
 
