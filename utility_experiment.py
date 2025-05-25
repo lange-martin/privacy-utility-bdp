@@ -202,8 +202,9 @@ def _load_and_discretize_electricity_data(file_path, num_states, time_period_hou
     wh_summed_period = resampled_avg_watt * time_period_hours
 
     # Discretize the 'wh_summed_period' into num_states using quantiles
-    discretized_states_series = pd.qcut(wh_summed_period, q=num_states, labels=False, duplicates='drop')
+    discretized_states_series, bins = pd.qcut(wh_summed_period, q=num_states, labels=False, duplicates='drop', retbins=True)
     discretized_states_series = discretized_states_series.dropna()
+    print(f"Bins electricity Wh: {bins}")
         
     effective_num_states = discretized_states_series.nunique()
 
@@ -262,7 +263,7 @@ def experiment_markov_activity():
     run_experiment(np_datasets, 
                    count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound", "Markov Chain Bound", "DP Query"], 
+                   ["General Bound/SOTA", "Markov Chain Bound", "DP Query"], 
                    trans_probs=probs, 
                    min_y=1e-1,
                    max_y=1e5, 
@@ -277,6 +278,9 @@ def experiment_markov_electricity(num_states=2, time_period_hours=24):
     discretized_states_series, effective_num_states = _load_and_discretize_electricity_data(file_path, num_states, time_period_hours)
 
     trans_probs = _calculate_electricity_transition_matrix(discretized_states_series, effective_num_states)
+    print(f"Transition probabilities:\n{trans_probs}")
+
+    print(f"Length of discretized_states_series: {len(discretized_states_series)}")
 
     # Prepare dataset: tile the single time series of states
     np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
@@ -284,7 +288,7 @@ def experiment_markov_electricity(num_states=2, time_period_hours=24):
     run_experiment(np_datasets, 
                    count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General bound", "Markov bound", "DP query"],
+                   ["General Bound/SOTA", "Markov Bound", "DP Query"],
                    show_legend=True,
                    legend_loc='right',
                    trans_probs=trans_probs,
@@ -300,38 +304,42 @@ def experiment_gaussian_height():
     # Shuffle rows
     height_data = height_data.sample(frac=1, random_state=14)
 
-    # Two versions: (1) One data set with all heights, including the parents. (2) Many data sets with heights of two
-    # parents and their child each.
-    # Use set to remember to only use parents data of each family once.
     families_already_seen = set()
+    # trio_datasets: Each row is a triple of child, mother, father
     trio_datasets = []
+    # full_dataset: All heights, maximum 3 members per family.
+    # Use set to remember to only use each family once.
     full_dataset = []
-    largest_family_size = 0
     for _, row in height_data.iterrows():
         trio_datasets.append([row['height'], row['father'], row['mother']])
-        full_dataset.append(row['height'])
-        largest_family_size = max(largest_family_size, row['kids'] + 2)
         if row['family'] not in families_already_seen:
+            full_dataset.append(row['height'])
             full_dataset.append(row['father'])
             full_dataset.append(row['mother'])
             families_already_seen.add(row['family'])
     trio_datasets = np.array(trio_datasets)
+    full_dataset = np.array(full_dataset)
+    print(f"Full dataset Galton length: {len(full_dataset)}")
+    full_dataset = np.tile(full_dataset, (1000, 1))
     # Calculate maximum empirical Pearson correlation coefficient
     corr_matrix = np.corrcoef(trio_datasets.T)
     print("Pearson correlation coefficients")
     print(corr_matrix)
     max_rho = np.max([corr_matrix[0,1], corr_matrix[0,2], corr_matrix[1,2]])
     print(f"Maximum empirical Pearson correlation coefficient: {max_rho}")
-    print(f"Largest family: {largest_family_size} members.")
 
-    run_experiment(trio_datasets, 
+    min_clip, max_clip = 0, 100
+    print(f"Galton clipping range: {min_clip}, {max_clip}")
+
+    run_experiment(full_dataset, 
                    sum, 
                    [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General bound", "Gaussian bound", "DP Query"], 
-                   min_value=60, 
-                   max_value=80, 
+                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"], 
+                   min_value=min_clip, 
+                   max_value=max_clip, 
                    max_rho=max_rho,
-                   name='gaussian_trios'
+                   m=3,
+                   name='gaussian_galton_height'
                    )
 
 
@@ -363,7 +371,7 @@ def experiment_gaussian_iq():
     run_experiment(np_datasets, 
                    sum,
                    [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General bound", "Gaussian bound", "DP query"],
+                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
                    min_value=min_iq, 
                    max_value=max_iq, 
                    max_rho=max_rho, 
@@ -401,11 +409,12 @@ def experiment_gaussian_iq_synthetic():
     # Define clipping range (e.g., mean +/- 4 std dev)
     clip_min = mean_val - 4 * std_dev
     clip_max = mean_val + 4 * std_dev
+    print(f"Synthetic IQ data range: min={clip_min}, max={clip_max}")
 
     run_experiment(duo_datasets, 
                    sum,
                    [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General bound", "Gaussian bound", "DP query"],
+                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
                    min_value=clip_min,
                    max_value=clip_max,
                    max_rho=correlation,
