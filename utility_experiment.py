@@ -45,8 +45,24 @@ def count_active_bdp_markov_chain_boun(datasets, epsilon, **kwargs):
     else:
         raise ValueError
 
+
 def count_active_dp(datasets, epsilon, **kwargs):
     return laplace_mechanism(count_active, datasets, 1.0 / epsilon)
+
+
+# From the paper "Optimal Local Bayesian Differential Privacy over Markov Chains"
+def count_active_randomized_response_symmetric(datasets, epsilon, **kwargs):
+    theta = kwargs['trans_probs'][0, 1]
+    # See page 7 of their paper for this approximation
+    rho_prob_perturb = (4. + theta*(theta*np.exp(epsilon) - 2.) - np.sqrt(theta**2*np.exp(epsilon)*(4. + theta*(theta*np.exp(epsilon) - 4.)))) / (8. + 2*theta*(theta*np.exp(epsilon) + theta - 4.))
+    print(f"Probability of perturbation for each state (rho): {rho_prob_perturb}")
+    print(f"Epsilon: {epsilon}")
+    # Generate random mask with same shape as datasets
+    random_mask = RNG.random(datasets.shape) < rho_prob_perturb
+    # Flip values where mask is True
+    perturbed_datasets = datasets.copy()
+    perturbed_datasets[random_mask] = 1 - perturbed_datasets[random_mask]
+    return count_active(perturbed_datasets), None
 
 
 def sum_bdp_general_bound(datasets, epsilon, **kwargs):
@@ -113,7 +129,7 @@ def calc_transition_probabilities(dataset):
 
 # Function that executes the utility experiment for a specific deterministic query and DP/BDP queries ("private queries")
 def run_experiment(datasets, non_private_query, private_queries, query_names, legend_loc='best', show_plot=True,
-                   name=None, marker_start_index=0, min_y=None, max_y=None, show_legend=True, **kwargs):
+                   name=None, marker_start_index=0, min_y=None, max_y=None, min_y_mape=None, max_y_mape=None, show_legend=True, **kwargs):
     resolution = 20
 
     epsilons = np.linspace(1.0, 20.0, resolution)
@@ -145,8 +161,9 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
         plt.scatter(epsilons[success[:, i]], abs_error_95[success[:, i], i],
                      label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
         # Formula to calculate utility of the laplace mechanism based on the scale of the Laplacian distribution
-        alphas = np.log(1 / 0.05) * lp_scales[success[:, i], i]
-        plt.plot(epsilons[success[:, i]], alphas, color=COLORS[i+marker_start_index])
+        if any(lp_scale for lp_scale in lp_scales[success[:, i], i]):
+            alphas = np.log(1 / 0.05) * lp_scales[success[:, i], i]
+            plt.plot(epsilons[success[:, i]], alphas, color=COLORS[i+marker_start_index])
 
     if show_legend:
         plt.legend(loc=legend_loc, fontsize=20)
@@ -179,6 +196,8 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     plt.yticks(fontsize=20)
     plt.grid(visible=True, axis='both')
     plt.gca().set_axisbelow(True)
+    if min_y_mape is not None and max_y_mape is not None:
+        plt.ylim((min_y_mape, max_y_mape))
     if SAVE and name is not None:
         os.makedirs('figures', exist_ok=True)
         plt.savefig(f'figures/{name}_MAPE.pdf', bbox_inches='tight')
@@ -283,16 +302,20 @@ def experiment_markov_electricity(num_states=2, time_period_hours=24):
     print(f"Length of discretized_states_series: {len(discretized_states_series)}")
 
     # Prepare dataset: tile the single time series of states
-    np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
+    np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (100000, 1))
 
     run_experiment(np_datasets, 
                    count_active,
-                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound/SOTA", "Markov Bound", "DP Query"],
+                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp, count_active_randomized_response_symmetric],
+                   ["General Bound/SOTA", "Markov Bound", "DP Query", "Randomized Response"],
                    show_legend=True,
-                   legend_loc='right',
+                   legend_loc='upper right',
                    trans_probs=trans_probs,
                    m=np_datasets.shape[1],
+                   min_y=1e-1,
+                   max_y=1e7,
+                   min_y_mape=1e-7,
+                   max_y_mape=1e6,
                    name=f'markov_electricity_{num_states}states_{time_period_hours}h',
                    )
 
