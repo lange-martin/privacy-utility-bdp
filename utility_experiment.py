@@ -116,8 +116,9 @@ def calc_transition_probabilities(dataset):
 
 
 # Function that executes the utility experiment for a specific deterministic query and DP/BDP queries ("private queries")
-def run_experiment(datasets, non_private_query, private_queries, query_names, legend_loc='best', show_plot=True,
-                   name=None, marker_start_index=0, min_y=None, max_y=None, min_y_mape=None, max_y_mape=None, show_legend=True, **kwargs):
+def run_experiment(datasets, non_private_query, private_queries, query_names, legend_loc='best',
+                   marker_start_index=0, min_y=None, max_y=None, min_y_mape=None, max_y_mape=None, show_legend=True, 
+                   fig_ax_ci=None, fig_ax_mape=None, color=None, marker=None,**kwargs):
     resolution = 20
 
     epsilons = np.linspace(1.0, 20.0, resolution)
@@ -144,57 +145,61 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
             except ValueError:
                 success[i, k] = False
 
-    # This is the confidence interval upper limit plot
+    # Confidence interval plot
+    fig_ci, ax_ci = fig_ax_ci if fig_ax_ci is not None else plt.subplots()
     for i in range(len(private_queries)):
-        plt.scatter(epsilons[success[:, i]], abs_error_95[success[:, i], i],
-                     label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
+        ax_ci.scatter(epsilons[success[:, i]], abs_error_95[success[:, i], i],
+                     label=query_names[i], color=color or COLORS[i+marker_start_index], marker=marker or MARKERS[i+marker_start_index], s=100)
         # Formula to calculate utility of the laplace mechanism based on the scale of the Laplacian distribution
         if any(lp_scale for lp_scale in lp_scales[success[:, i], i]):
             alphas = np.log(1 / 0.05) * lp_scales[success[:, i], i]
-            plt.plot(epsilons[success[:, i]], alphas, color=COLORS[i+marker_start_index])
+            ax_ci.plot(epsilons[success[:, i]], alphas, color=color or COLORS[i+marker_start_index])
 
     if show_legend:
-        plt.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
-    plt.xlabel('ε', fontsize=20)
-    plt.yscale('log')
-    plt.ylabel('α', fontsize=20, rotation='horizontal')
-    plt.xticks(fontsize=20, ticks=[2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
-    plt.yticks(fontsize=20)
-    plt.grid(visible=True, axis='both')
-    plt.gca().set_axisbelow(True)
+        ax_ci.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
+    ax_ci.set_xlabel('ε', fontsize=20)
+    ax_ci.set_yscale('log')
+    ax_ci.set_ylabel('α', fontsize=20, rotation='horizontal')
+    ax_ci.set_xticks([2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+    ax_ci.tick_params(axis='both', labelsize=20)
+    ax_ci.grid(visible=True, axis='both')
+    ax_ci.set_axisbelow(True)
     if min_y is not None and max_y is not None:
-        plt.ylim((min_y, max_y))
-    if SAVE and name is not None:
-        os.makedirs('figures', exist_ok=True)
-        plt.savefig(f'figures/{name}_confidence_interval.pdf', bbox_inches='tight')
-    if show_plot:
-        plt.show()
+        ax_ci.set_ylim((min_y, max_y))
 
-    # This is the MAPE plot
+    # MAPE plot
+    fig_mape, ax_mape = fig_ax_mape if fig_ax_mape is not None else plt.subplots()
     for i in range(len(private_queries)):
-        plt.scatter(epsilons[success[:, i]], MAPE[success[:, i], i],
-                     label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
+        ax_mape.scatter(epsilons[success[:, i]], MAPE[success[:, i], i],
+                     label=query_names[i], color=color or COLORS[i+marker_start_index], marker=marker or MARKERS[i+marker_start_index], s=100)
 
     if show_legend:
-        plt.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
-    plt.xlabel('ε', fontsize=20)
-    plt.yscale('log')
-    plt.ylabel('MAPE', fontsize=20)
-    plt.xticks(fontsize=20, ticks=[2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
-    plt.yticks(fontsize=20)
-    plt.grid(visible=True, axis='both')
-    plt.gca().set_axisbelow(True)
+        ax_mape.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
+    ax_mape.set_xlabel('ε', fontsize=20)
+    ax_mape.set_yscale('log')
+    ax_mape.set_ylabel('MAPE', fontsize=20)
+    ax_mape.set_xticks([2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+    ax_mape.tick_params(axis='both', labelsize=20)
+    ax_mape.grid(visible=True, axis='both')
+    ax_mape.set_axisbelow(True)
     if min_y_mape is not None and max_y_mape is not None:
-        plt.ylim((min_y_mape, max_y_mape))
-    if SAVE and name is not None:
+        ax_mape.set_ylim((min_y_mape, max_y_mape))
+        
+    return fig_ci, ax_ci, fig_mape, ax_mape
+
+
+def _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag):
+    if SAVE and name_prefix is not None:
         os.makedirs('figures', exist_ok=True)
-        plt.savefig(f'figures/{name}_MAPE.pdf', bbox_inches='tight')
-    if show_plot:
-        plt.show()
+        fig_ci.savefig(f'figures/{name_prefix}_confidence_interval.pdf', bbox_inches='tight')
+        fig_mape.savefig(f'figures/{name_prefix}_MAPE.pdf', bbox_inches='tight')
+    if show_plot_flag:
+        fig_ci.show()
+        fig_mape.show()
 
 
 # Loads and discretizes the electricity dataset (in time and into different ranges/states)
-def _load_and_discretize_electricity_data(file_path, time_period_hours):
+def _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=80_000):
     df = pd.read_csv(file_path)
 
     df['UNIX_TS'] = pd.to_datetime(df['UNIX_TS'], unit='s')
@@ -208,16 +213,11 @@ def _load_and_discretize_electricity_data(file_path, time_period_hours):
     resampled_avg_watt = df['total_consumption_watt'].resample(f'{time_period_hours}H').mean().dropna()
     wh_summed_period = resampled_avg_watt * time_period_hours
 
-    min_wh = wh_summed_period.min()
-    max_wh = wh_summed_period.max()
-    threshold = 80_000
-    
     # Discretize into binary states using threshold
     discretized_states_series = (wh_summed_period > threshold).astype(int)
     discretized_states_series = discretized_states_series.dropna()
     
     prop_state_1 = discretized_states_series.mean()
-    print(f"Range of electricity Wh: [{min_wh:.2f}, {max_wh:.2f}]")
     print(f"Threshold for discretization: {threshold:.2f}")
     print(f"Proportion of state 1: {prop_state_1:.2%}")
 
@@ -246,7 +246,7 @@ def _calculate_electricity_transition_matrix(discretized_states_series):
 
 
 # Load data and execute experiment for Markov chain data (activity dataset)
-def experiment_markov_activity():
+def experiment_markov_activity(SAVE=False, show_plot_flag=True):
     activity_data = pd.read_csv("datasets/activity.csv")
     activity_data = activity_data.dropna()
 
@@ -255,16 +255,19 @@ def experiment_markov_activity():
     # All states in one dataset
     np_datasets = np.tile(activity_data['steps'].to_numpy(dtype=int), (1000, 1))
 
-    run_experiment(np_datasets, 
-                   count_active,
-                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["", "", ""], 
-                   show_legend=False, 
-                   trans_probs=probs, 
-                   min_y=1e-1, 
-                   max_y=1e5,
-                   name='markov_total'
-                   )
+    fig_ci_total, ax_ci_total, fig_mape_total, ax_mape_total = run_experiment(
+        np_datasets, 
+        count_active,
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+        ["", "", ""], 
+        show_legend=False, 
+        trans_probs=probs, 
+        min_y=1e-1, 
+        max_y=1e5
+    )
+    
+    name_total = 'markov_total'
+    _handle_plots(fig_ci_total, fig_mape_total, name_total, SAVE, show_plot_flag)
 
     # Split dataframe into many dataframes, one per day
     data_per_day = [x for _, x in activity_data.groupby(['date'])]
@@ -273,22 +276,25 @@ def experiment_markov_activity():
     for i, df in enumerate(data_per_day):
         np_datasets[i] = df['steps'].to_numpy()
 
-    run_experiment(np_datasets, 
-                   count_active,
-                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound", "Markov Chain Bound", "DP Query"], 
-                   trans_probs=probs, 
-                   min_y=1e-1,
-                   max_y=1e5, 
-                   name='markov_per_day', 
-                   show_legend=False
-                   )
+    fig_ci_per_day, ax_ci_per_day, fig_mape_per_day, ax_mape_per_day = run_experiment(
+        np_datasets, 
+        count_active,
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+        ["General Bound", "Markov Chain Bound", "DP Query"], 
+        trans_probs=probs, 
+        min_y=1e-1,
+        max_y=1e5, 
+        show_legend=False
+    )
+
+    name_per_day = 'markov_per_day'
+    _handle_plots(fig_ci_per_day, fig_mape_per_day, name_per_day, SAVE, show_plot_flag)
 
 
 # Load data and execute experiment for electricity data (Markov chain)
-def experiment_markov_electricity(time_period_hours=24):
+def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_flag=True):
     file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
-    discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours)
+    discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=80_000)
 
     trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
     print(f"Transition probabilities:\n{trans_probs}")
@@ -298,20 +304,45 @@ def experiment_markov_electricity(time_period_hours=24):
     # Prepare dataset: tile the single time series of states
     np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
 
-    run_experiment(np_datasets, 
-                   count_active,
-                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound", "Markov Bound", "DP Query"],
-                   show_legend=True,
-                   legend_loc='right',
-                   trans_probs=trans_probs,
-                   m=np_datasets.shape[1],
-                   name=f'markov_electricity_binary_{time_period_hours}h',
-                   )
+    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+        np_datasets, 
+        count_active,
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+        ["General Bound", "Markov (80)", "DP Query"],
+        show_legend=True,
+        legend_loc='upper right',
+        trans_probs=trans_probs,
+        m=np_datasets.shape[1]
+    )
+
+    for threshold, color, marker in [(70, "palegreen", "1"), (60, "lime", "*")]:
+        discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=threshold*1000)
+        trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
+        print(f"Transition probabilities for threshold {threshold}:\n{trans_probs}")
+
+        np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
+
+        fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+            np_datasets, 
+            count_active,
+            [count_active_bdp_markov_chain_boun],
+            [f"Markov ({threshold})"],
+            show_legend=True,
+            legend_loc='upper right',
+            trans_probs=trans_probs,
+            m=np_datasets.shape[1],
+            fig_ax_ci=(fig_ci, ax_ci),
+            fig_ax_mape=(fig_mape, ax_mape),
+            color=color,
+            marker=marker,
+        )
+
+    name_prefix = f'markov_electricity_binary_{time_period_hours}h'
+    _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
 # Load data and execute experiment for Gaussian data
-def experiment_gaussian_height():
+def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
     height_data = pd.read_stata("datasets/dataverse_files_galton_height/galton.dta")
     height_data = height_data.dropna()
     # Shuffle rows
@@ -344,19 +375,22 @@ def experiment_gaussian_height():
     min_clip, max_clip = 0, 100
     print(f"Galton clipping range: {min_clip}, {max_clip}")
 
-    run_experiment(full_dataset, 
-                   sum, 
-                   [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"], 
-                   min_value=min_clip, 
-                   max_value=max_clip, 
-                   max_rho=max_rho,
-                   m=3,
-                   name='gaussian_galton_height'
-                   )
+    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+        full_dataset, 
+        sum, 
+        [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
+        ["General Bound/SOTA", "Gaussian Bound", "DP Query"], 
+        min_value=min_clip, 
+        max_value=max_clip, 
+        max_rho=max_rho,
+        m=3
+    )
+
+    name_prefix = 'gaussian_galton_height'
+    _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
-def experiment_gaussian_iq():
+def experiment_gaussian_iq(SAVE=False, show_plot_flag=True):
     iq_data = pd.read_csv("datasets/kid_iq.csv")
     iq_data = iq_data[['kid_score', 'mom_iq']].dropna()
 
@@ -381,21 +415,25 @@ def experiment_gaussian_iq():
     # Each row in np_datasets is a full copy of all combined_iqs
     np_datasets = np.tile(combined_iqs, (1000, 1))
 
-    run_experiment(np_datasets, 
-                   sum,
-                   [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
-                   min_value=min_iq, 
-                   max_value=max_iq, 
-                   max_rho=max_rho, 
-                   m=2,  # number of correlated items
-                   name='gaussian_iq',
-                   legend_loc='upper right', 
-                   show_plot=True
-                   )
+    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+        np_datasets, 
+        sum,
+        [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
+        ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
+        min_value=min_iq, 
+        max_value=max_iq, 
+        max_rho=max_rho, 
+        m=2,  # number of correlated items
+        name='gaussian_iq',
+        legend_loc='upper right', 
+        show_plot=True
+    )
+
+    name_prefix = 'gaussian_iq'
+    _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
-def experiment_gaussian_iq_synthetic():
+def experiment_gaussian_iq_synthetic(SAVE=False, show_plot_flag=True):
     num_samples = 10000
     mean_val = 100
     std_dev = 15
@@ -424,24 +462,28 @@ def experiment_gaussian_iq_synthetic():
     clip_max = 200
     print(f"Synthetic IQ clipping range: min={clip_min}, max={clip_max}")
 
-    run_experiment(duo_datasets, 
-                   sum,
-                   [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
-                   ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
-                   min_value=clip_min,
-                   max_value=clip_max,
-                   max_rho=correlation,
-                   m=2,
-                   name='gaussian_iq_synthetic',
-                   legend_loc='upper right',
-                   show_plot=True
-                   )
+    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+        duo_datasets, 
+        sum,
+        [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
+        ["General Bound/SOTA", "Gaussian Bound", "DP Query"],
+        min_value=clip_min,
+        max_value=clip_max,
+        max_rho=correlation,
+        m=2,
+        legend_loc='upper right'
+    )
+
+    name_prefix = 'gaussian_iq_synthetic'
+    _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
 if __name__ == "__main__":
     SAVE = True
-    experiment_markov_activity()
-    experiment_gaussian_height()
-    experiment_markov_electricity()
-    experiment_gaussian_iq()
-    experiment_gaussian_iq_synthetic()
+    show_plots = True
+
+    experiment_markov_activity(SAVE=SAVE, show_plot_flag=show_plots)
+    experiment_gaussian_height(SAVE=SAVE, show_plot_flag=show_plots)
+    experiment_markov_electricity(SAVE=SAVE, show_plot_flag=show_plots)
+    experiment_gaussian_iq(SAVE=SAVE, show_plot_flag=show_plots)
+    experiment_gaussian_iq_synthetic(SAVE=SAVE, show_plot_flag=show_plots)
