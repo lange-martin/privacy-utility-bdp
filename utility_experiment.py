@@ -39,7 +39,10 @@ def count_active_bdp_general_bound(datasets, epsilon, **kwargs):
 
 
 def count_active_bdp_markov_chain_boun(datasets, epsilon, **kwargs):
-    dp_eps = epsilon - 4 * np.log(np.max(kwargs['trans_probs'])/np.min(kwargs['trans_probs']))
+    min_eps = 4 * np.log(np.max(kwargs['trans_probs'])/np.min(kwargs['trans_probs']))
+    if epsilon == 1.:
+        print(f"Minimum epsilon for Markov chain bound: {min_eps}")
+    dp_eps = epsilon - min_eps
     if dp_eps > 0:
         return laplace_mechanism(count_active, datasets, 1.0 / dp_eps)
     else:
@@ -48,21 +51,6 @@ def count_active_bdp_markov_chain_boun(datasets, epsilon, **kwargs):
 
 def count_active_dp(datasets, epsilon, **kwargs):
     return laplace_mechanism(count_active, datasets, 1.0 / epsilon)
-
-
-# From the paper "Optimal Local Bayesian Differential Privacy over Markov Chains"
-def count_active_randomized_response_symmetric(datasets, epsilon, **kwargs):
-    theta = kwargs['trans_probs'][0, 1]
-    # See page 7 of their paper for this approximation
-    rho_prob_perturb = (4. + theta*(theta*np.exp(epsilon) - 2.) - np.sqrt(theta**2*np.exp(epsilon)*(4. + theta*(theta*np.exp(epsilon) - 4.)))) / (8. + 2*theta*(theta*np.exp(epsilon) + theta - 4.))
-    print(f"Probability of perturbation for each state (rho): {rho_prob_perturb}")
-    print(f"Epsilon: {epsilon}")
-    # Generate random mask with same shape as datasets
-    random_mask = RNG.random(datasets.shape) < rho_prob_perturb
-    # Flip values where mask is True
-    perturbed_datasets = datasets.copy()
-    perturbed_datasets[random_mask] = 1 - perturbed_datasets[random_mask]
-    return count_active(perturbed_datasets), None
 
 
 def sum_bdp_general_bound(datasets, epsilon, **kwargs):
@@ -166,7 +154,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
             plt.plot(epsilons[success[:, i]], alphas, color=COLORS[i+marker_start_index])
 
     if show_legend:
-        plt.legend(loc=legend_loc, fontsize=20)
+        plt.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
     plt.xlabel('ε', fontsize=20)
     plt.yscale('log')
     plt.ylabel('α', fontsize=20, rotation='horizontal')
@@ -188,7 +176,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
                      label=query_names[i], color=COLORS[i+marker_start_index], marker=MARKERS[i+marker_start_index], s=100)
 
     if show_legend:
-        plt.legend(loc=legend_loc, fontsize=20)
+        plt.legend(loc=legend_loc, fontsize=20, handlelength=1., handletextpad=0.4)
     plt.xlabel('ε', fontsize=20)
     plt.yscale('log')
     plt.ylabel('MAPE', fontsize=20)
@@ -206,7 +194,7 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
 
 
 # Loads and discretizes the electricity dataset (in time and into different ranges/states)
-def _load_and_discretize_electricity_data(file_path, num_states, time_period_hours):
+def _load_and_discretize_electricity_data(file_path, time_period_hours):
     df = pd.read_csv(file_path)
 
     df['UNIX_TS'] = pd.to_datetime(df['UNIX_TS'], unit='s')
@@ -220,19 +208,25 @@ def _load_and_discretize_electricity_data(file_path, num_states, time_period_hou
     resampled_avg_watt = df['total_consumption_watt'].resample(f'{time_period_hours}H').mean().dropna()
     wh_summed_period = resampled_avg_watt * time_period_hours
 
-    # Discretize the 'wh_summed_period' into num_states using quantiles
-    discretized_states_series, bins = pd.qcut(wh_summed_period, q=num_states, labels=False, duplicates='drop', retbins=True)
+    min_wh = wh_summed_period.min()
+    max_wh = wh_summed_period.max()
+    threshold = 80_000
+    
+    # Discretize into binary states using threshold
+    discretized_states_series = (wh_summed_period > threshold).astype(int)
     discretized_states_series = discretized_states_series.dropna()
-    print(f"Bins electricity Wh: {bins}")
-        
-    effective_num_states = discretized_states_series.nunique()
+    
+    prop_state_1 = discretized_states_series.mean()
+    print(f"Range of electricity Wh: [{min_wh:.2f}, {max_wh:.2f}]")
+    print(f"Threshold for discretization: {threshold:.2f}")
+    print(f"Proportion of state 1: {prop_state_1:.2%}")
 
-    return discretized_states_series, effective_num_states
+    return discretized_states_series
 
 
 # Calculates the empirical transition probabilities between discretized states of electricity data
-def _calculate_electricity_transition_matrix(discretized_states_series, effective_num_states):
-    transition_counts = np.zeros((effective_num_states, effective_num_states), dtype=int)
+def _calculate_electricity_transition_matrix(discretized_states_series):
+    transition_counts = np.zeros((2, 2), dtype=int)
     
     prev_state = -1
 
@@ -242,8 +236,8 @@ def _calculate_electricity_transition_matrix(discretized_states_series, effectiv
         prev_state = current_state
     
     # Convert counts to probabilities
-    transition_probabilities = np.zeros((effective_num_states, effective_num_states))
-    for i in range(effective_num_states):
+    transition_probabilities = np.zeros((2, 2))
+    for i in range(2):
         row_sum = np.sum(transition_counts[i, :])
         if row_sum > 0:
             transition_probabilities[i, :] = transition_counts[i, :] / row_sum
@@ -282,7 +276,7 @@ def experiment_markov_activity():
     run_experiment(np_datasets, 
                    count_active,
                    [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-                   ["General Bound/SOTA", "Markov Chain Bound", "DP Query"], 
+                   ["General Bound", "Markov Chain Bound", "DP Query"], 
                    trans_probs=probs, 
                    min_y=1e-1,
                    max_y=1e5, 
@@ -292,31 +286,27 @@ def experiment_markov_activity():
 
 
 # Load data and execute experiment for electricity data (Markov chain)
-def experiment_markov_electricity(num_states=2, time_period_hours=24):
+def experiment_markov_electricity(time_period_hours=24):
     file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
-    discretized_states_series, effective_num_states = _load_and_discretize_electricity_data(file_path, num_states, time_period_hours)
+    discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours)
 
-    trans_probs = _calculate_electricity_transition_matrix(discretized_states_series, effective_num_states)
+    trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
     print(f"Transition probabilities:\n{trans_probs}")
 
     print(f"Length of discretized_states_series: {len(discretized_states_series)}")
 
     # Prepare dataset: tile the single time series of states
-    np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (100000, 1))
+    np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
 
     run_experiment(np_datasets, 
                    count_active,
-                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp, count_active_randomized_response_symmetric],
-                   ["General Bound/SOTA", "Markov Bound", "DP Query", "Randomized Response"],
+                   [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+                   ["General Bound", "Markov Bound", "DP Query"],
                    show_legend=True,
-                   legend_loc='upper right',
+                   legend_loc='right',
                    trans_probs=trans_probs,
                    m=np_datasets.shape[1],
-                   min_y=1e-1,
-                   max_y=1e7,
-                   min_y_mape=1e-7,
-                   max_y_mape=1e6,
-                   name=f'markov_electricity_{num_states}states_{time_period_hours}h',
+                   name=f'markov_electricity_binary_{time_period_hours}h',
                    )
 
 
@@ -383,9 +373,9 @@ def experiment_gaussian_iq():
     # Create combined dataset
     combined_iqs = pd.concat([kid_iqs, mom_iqs]).to_numpy()
     
-    min_iq = combined_iqs.min()
-    max_iq = combined_iqs.max()
-    print(f"IQ data range: min={min_iq}, max={max_iq}")
+    min_iq = 0
+    max_iq = 200
+    print(f"IQ clipping range: min={min_iq}, max={max_iq}")
 
     # Tile the dataset 1000 times
     # Each row in np_datasets is a full copy of all combined_iqs
@@ -429,10 +419,10 @@ def experiment_gaussian_iq_synthetic():
     # Copy this 1D array 1000 times for the experiment
     duo_datasets = np.tile(all_generated_scores_1d, (1000, 1))
 
-    # Define clipping range (e.g., mean +/- 4 std dev)
-    clip_min = mean_val - 4 * std_dev
-    clip_max = mean_val + 4 * std_dev
-    print(f"Synthetic IQ data range: min={clip_min}, max={clip_max}")
+    # Define clipping range
+    clip_min = 0
+    clip_max = 200
+    print(f"Synthetic IQ clipping range: min={clip_min}, max={clip_max}")
 
     run_experiment(duo_datasets, 
                    sum,
