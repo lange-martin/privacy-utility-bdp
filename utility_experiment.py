@@ -38,9 +38,9 @@ def count_active_bdp_general_bound(datasets, epsilon, **kwargs):
     return laplace_mechanism(count_active, datasets, n / epsilon)
 
 
-def count_active_bdp_markov_chain_boun(datasets, epsilon, **kwargs):
+def count_active_bdp_markov_chain_bound(datasets, epsilon, **kwargs):
     min_eps = 4 * np.log(np.max(kwargs['trans_probs'])/np.min(kwargs['trans_probs']))
-    if epsilon == 1.:
+    if epsilon == 1.0:
         print(f"Minimum epsilon for Markov chain bound: {min_eps}")
     dp_eps = epsilon - min_eps
     if dp_eps > 0:
@@ -69,13 +69,16 @@ def sum_bdp_gaussian_bound(datasets, epsilon, **kwargs):
     dp_eps = epsilon / bdp_factor
     return laplace_mechanism(sum, datasets, 1 / dp_eps)
 
+
 def sum_dp(datasets, epsilon, **kwargs):
     datasets = np.clip(datasets, kwargs['min_value'], kwargs['max_value'])
     return laplace_mechanism(sum, datasets, (kwargs['max_value'] - kwargs['min_value']) / epsilon)
 
 
-# Calculates the empirical transition probabilities of a binary Markov chain
 def calc_transition_probabilities(dataset):
+    """
+    Calculates the empirical transition probabilities of a binary Markov chain for activity data.
+    """
     inactive_to_inactive = 0
     inactive_to_active = 0
     active_to_inactive = 0
@@ -115,10 +118,14 @@ def calc_transition_probabilities(dataset):
                      [active_to_inactive / times_active, active_to_active / times_active]])
 
 
-# Function that executes the utility experiment for a specific deterministic query and DP/BDP queries ("private queries")
 def run_experiment(datasets, non_private_query, private_queries, query_names, legend_loc='best',
                    marker_start_index=0, min_y=None, max_y=None, min_y_mape=None, max_y_mape=None, show_legend=True, 
                    fig_ax_ci=None, fig_ax_mape=None, color=None, marker=None,**kwargs):
+    """
+    Runs the utility experiment for a specific deterministic query and DP/BDP queries ("private queries").
+
+    Returns the figures for the confidence interval and MAPE plots.
+    """
     resolution = 20
 
     epsilons = np.linspace(1.0, 20.0, resolution)
@@ -150,8 +157,9 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
     for i in range(len(private_queries)):
         ax_ci.scatter(epsilons[success[:, i]], abs_error_95[success[:, i], i],
                      label=query_names[i], color=color or COLORS[i+marker_start_index], marker=marker or MARKERS[i+marker_start_index], s=100)
-        # Formula to calculate utility of the laplace mechanism based on the scale of the Laplacian distribution
+        
         if any(lp_scale for lp_scale in lp_scales[success[:, i], i]):
+            # Formula to calculate utility of the laplace mechanism based on the scale of the Laplacian distribution
             alphas = np.log(1 / 0.05) * lp_scales[success[:, i], i]
             ax_ci.plot(epsilons[success[:, i]], alphas, color=color or COLORS[i+marker_start_index])
 
@@ -189,6 +197,9 @@ def run_experiment(datasets, non_private_query, private_queries, query_names, le
 
 
 def _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag):
+    """
+    Helper function for saving and showing the confidence interval and MAPE plots.
+    """
     if SAVE and name_prefix is not None:
         os.makedirs('figures', exist_ok=True)
         fig_ci.savefig(f'figures/{name_prefix}_confidence_interval.pdf', bbox_inches='tight')
@@ -197,8 +208,10 @@ def _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag):
         plt.show(block=True)
 
 
-# Loads and discretizes the electricity dataset (in time and into different ranges/states)
 def _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=80_000):
+    """
+    Loads and discretizes the electricity dataset (in time and into different ranges/states).
+    """
     df = pd.read_csv(file_path)
 
     df['UNIX_TS'] = pd.to_datetime(df['UNIX_TS'], unit='s')
@@ -223,8 +236,10 @@ def _load_and_discretize_electricity_data(file_path, time_period_hours, threshol
     return discretized_states_series
 
 
-# Calculates the empirical transition probabilities between discretized states of electricity data
 def _calculate_electricity_transition_matrix(discretized_states_series):
+    """
+    Calculates the empirical transition probabilities between discretized states of electricity data.
+    """
     transition_counts = np.zeros((2, 2), dtype=int)
     
     prev_state = -1
@@ -244,8 +259,10 @@ def _calculate_electricity_transition_matrix(discretized_states_series):
     return transition_probabilities
 
 
-# Load data and execute experiment for Markov chain data (activity dataset)
 def experiment_markov_activity(SAVE=False, show_plot_flag=True):
+    """
+    Loads the activity dataset and executes the utility experiment for Markov chain data.
+    """
     activity_data = pd.read_csv("datasets/activity.csv")
     activity_data = activity_data.dropna()
 
@@ -254,12 +271,13 @@ def experiment_markov_activity(SAVE=False, show_plot_flag=True):
     # All states in one dataset
     np_datasets = np.tile(activity_data['steps'].to_numpy(dtype=int), (1000, 1))
 
-    fig_ci_total, ax_ci_total, fig_mape_total, ax_mape_total = run_experiment(
+    fig_ci_total, _, fig_mape_total, _ = run_experiment(
         np_datasets, 
         count_active,
-        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
-        ["", "", ""], 
-        show_legend=False, 
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_bound, count_active_dp],
+        ["General Bound", "Markov Bound", "DP Query"], 
+        show_legend=True,
+        legend_loc='right',
         trans_probs=probs, 
         min_y=1e-1, 
         max_y=1e5
@@ -275,23 +293,25 @@ def experiment_markov_activity(SAVE=False, show_plot_flag=True):
     for i, df in enumerate(data_per_day):
         np_datasets[i] = df['steps'].to_numpy()
 
-    fig_ci_per_day, ax_ci_per_day, fig_mape_per_day, ax_mape_per_day = run_experiment(
+    fig_ci_per_day, _, fig_mape_per_day, _ = run_experiment(
         np_datasets, 
         count_active,
-        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_bound, count_active_dp],
         ["General Bound", "Markov Chain Bound", "DP Query"], 
         trans_probs=probs, 
         min_y=1e-1,
         max_y=1e5, 
-        show_legend=False
+        show_legend=False,
     )
 
     name_per_day = 'markov_per_day'
     _handle_plots(fig_ci_per_day, fig_mape_per_day, name_per_day, SAVE, show_plot_flag)
 
 
-# Load data and execute experiment for electricity data (Markov chain)
 def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_flag=True):
+    """
+    Loads the electricity dataset and executes the utility experiment for Markov chain data.
+    """
     file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
     discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=80_000)
 
@@ -306,7 +326,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
     fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
         np_datasets, 
         count_active,
-        [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+        [count_active_bdp_general_bound, count_active_bdp_markov_chain_bound, count_active_dp],
         ["General Bound", "Markov (80)", "DP Query"],
         show_legend=False,
         legend_loc='upper right',
@@ -314,6 +334,8 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
         m=np_datasets.shape[1]
     )
 
+    # We add results using different thresholds for discretization. 
+    # This changes the transition probabilities, and in turn the minimum epsilon for the Markov chain bound.
     for threshold, color, marker in [(70, "palegreen", "1"), (60, "lime", "*")]:
         discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=threshold*1000)
         trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
@@ -324,7 +346,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
         fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
             np_datasets, 
             count_active,
-            [count_active_bdp_markov_chain_boun],
+            [count_active_bdp_markov_chain_bound],
             [f"Markov ({threshold})"],
             show_legend=False,
             legend_loc='upper right',
@@ -336,7 +358,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
             marker=marker,
         )
 
-    
+    # Correct the order of the labels in the legend
     handles, labels = ax_ci.get_legend_handles_labels()
     def sort_key(label):
         match label:
@@ -357,8 +379,10 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
     _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
-# Load data and execute experiment for electricity data (Markov chain) for the long version of the paper
 def experiment_markov_electricity_long_version(time_period_hours=24, SAVE=False, show_plot_flag=True):
+    """
+    Loads the electricity dataset and executes the utility experiment for Markov chain data for the long version of the paper.
+    """
     file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
 
     for threshold in [60, 70, 80]:
@@ -367,10 +391,10 @@ def experiment_markov_electricity_long_version(time_period_hours=24, SAVE=False,
 
         np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
 
-        fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+        fig_ci, _, fig_mape, _ = run_experiment(
             np_datasets, 
             count_active,
-            [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+            [count_active_bdp_general_bound, count_active_bdp_markov_chain_bound, count_active_dp],
             ["General Bound", "Markov Bound", "DP Query"],
             show_legend=True,
             legend_loc='upper right',
@@ -378,12 +402,15 @@ def experiment_markov_electricity_long_version(time_period_hours=24, SAVE=False,
             m=np_datasets.shape[1],
         )
 
+        # In the long version, we have more space so we can show three plots - one for each threshold
         name_prefix = f'markov_electricity_{threshold}kWh_long_version_{time_period_hours}h'
         _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
-# Load data and execute experiment for Gaussian data
 def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
+    """
+    Loads the Galton height dataset and executes the utility experiment for Gaussian data.
+    """
     height_data = pd.read_stata("datasets/dataverse_files_galton_height/galton.dta")
     height_data = height_data.dropna()
     # Shuffle rows
@@ -395,6 +422,7 @@ def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
     # full_dataset: All heights, maximum 3 members per family.
     # Use set to remember to only use each family once.
     full_dataset = []
+
     for _, row in height_data.iterrows():
         trio_datasets.append([row['height'], row['father'], row['mother']])
         if row['family'] not in families_already_seen:
@@ -402,10 +430,12 @@ def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
             full_dataset.append(row['father'])
             full_dataset.append(row['mother'])
             families_already_seen.add(row['family'])
+
     trio_datasets = np.array(trio_datasets)
     full_dataset = np.array(full_dataset)
     print(f"Full dataset Galton length: {len(full_dataset)}")
     full_dataset = np.tile(full_dataset, (1000, 1))
+
     # Calculate maximum empirical Pearson correlation coefficient
     corr_matrix = np.corrcoef(trio_datasets.T)
     print("Pearson correlation coefficients")
@@ -416,7 +446,7 @@ def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
     min_clip, max_clip = 0, 100
     print(f"Galton clipping range: {min_clip}, {max_clip}")
 
-    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+    fig_ci, _, fig_mape, _ = run_experiment(
         full_dataset, 
         sum, 
         [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
@@ -432,6 +462,9 @@ def experiment_gaussian_height(SAVE=False, show_plot_flag=True):
 
 
 def experiment_gaussian_iq(SAVE=False, show_plot_flag=True):
+    """
+    Loads the IQ dataset and executes the utility experiment for Gaussian data.
+    """
     iq_data = pd.read_csv("datasets/kid_iq.csv")
     iq_data = iq_data[['kid_score', 'mom_iq']].dropna()
 
@@ -475,6 +508,9 @@ def experiment_gaussian_iq(SAVE=False, show_plot_flag=True):
 
 
 def experiment_gaussian_iq_synthetic(SAVE=False, show_plot_flag=True):
+    """
+    Generates a large synthetic IQ dataset and executes the utility experiment for Gaussian data.
+    """
     num_samples = 10000
     mean_val = 100
     std_dev = 15
@@ -503,7 +539,7 @@ def experiment_gaussian_iq_synthetic(SAVE=False, show_plot_flag=True):
     clip_max = 200
     print(f"Synthetic IQ clipping range: min={clip_min}, max={clip_max}")
 
-    fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+    fig_ci, _, fig_mape, _ = run_experiment(
         duo_datasets, 
         sum,
         [sum_bdp_general_bound, sum_bdp_gaussian_bound, sum_dp],
