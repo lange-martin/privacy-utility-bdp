@@ -194,8 +194,7 @@ def _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag):
         fig_ci.savefig(f'figures/{name_prefix}_confidence_interval.pdf', bbox_inches='tight')
         fig_mape.savefig(f'figures/{name_prefix}_MAPE.pdf', bbox_inches='tight')
     if show_plot_flag:
-        fig_ci.show()
-        fig_mape.show()
+        plt.show(block=True)
 
 
 # Loads and discretizes the electricity dataset (in time and into different ranges/states)
@@ -309,7 +308,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
         count_active,
         [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
         ["General Bound", "Markov (80)", "DP Query"],
-        show_legend=True,
+        show_legend=False,
         legend_loc='upper right',
         trans_probs=trans_probs,
         m=np_datasets.shape[1]
@@ -327,7 +326,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
             count_active,
             [count_active_bdp_markov_chain_boun],
             [f"Markov ({threshold})"],
-            show_legend=True,
+            show_legend=False,
             legend_loc='upper right',
             trans_probs=trans_probs,
             m=np_datasets.shape[1],
@@ -337,8 +336,50 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
             marker=marker,
         )
 
+    
+    handles, labels = ax_ci.get_legend_handles_labels()
+    def sort_key(label):
+        match label:
+            case "General Bound":
+                return 0
+            case "Markov (80)":
+                return 1
+            case "Markov (70)":
+                return 2
+            case "Markov (60)":
+                return 3
+            case "DP Query":
+                return 4
+    handles, labels = zip(*sorted(zip(handles, labels), key=lambda x: sort_key(x[1])))
+    ax_ci.legend(handles, labels, loc='upper right', fontsize=20, handlelength=1., handletextpad=0.4)
+
     name_prefix = f'markov_electricity_binary_{time_period_hours}h'
     _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
+
+
+# Load data and execute experiment for electricity data (Markov chain) for the long version of the paper
+def experiment_markov_electricity_long_version(time_period_hours=24, SAVE=False, show_plot_flag=True):
+    file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
+
+    for threshold in [60, 70, 80]:
+        discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=threshold*1000)
+        trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
+
+        np_datasets = np.tile(discretized_states_series.to_numpy(dtype=int), (1000, 1))
+
+        fig_ci, ax_ci, fig_mape, ax_mape = run_experiment(
+            np_datasets, 
+            count_active,
+            [count_active_bdp_general_bound, count_active_bdp_markov_chain_boun, count_active_dp],
+            ["General Bound", "Markov Bound", "DP Query"],
+            show_legend=True,
+            legend_loc='upper right',
+            trans_probs=trans_probs,
+            m=np_datasets.shape[1],
+        )
+
+        name_prefix = f'markov_electricity_{threshold}kWh_long_version_{time_period_hours}h'
+        _handle_plots(fig_ci, fig_mape, name_prefix, SAVE, show_plot_flag)
 
 
 # Load data and execute experiment for Gaussian data
@@ -485,5 +526,6 @@ if __name__ == "__main__":
     experiment_markov_activity(SAVE=SAVE, show_plot_flag=show_plots)
     experiment_gaussian_height(SAVE=SAVE, show_plot_flag=show_plots)
     experiment_markov_electricity(SAVE=SAVE, show_plot_flag=show_plots)
+    experiment_markov_electricity_long_version(SAVE=SAVE, show_plot_flag=show_plots)
     experiment_gaussian_iq(SAVE=SAVE, show_plot_flag=show_plots)
     experiment_gaussian_iq_synthetic(SAVE=SAVE, show_plot_flag=show_plots)
