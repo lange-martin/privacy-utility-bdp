@@ -38,8 +38,6 @@ def binom_pmf(k, n, q):
 
 
 # PMF Bin(n1, q1) y Bin(n2, q2)
-
-
 def conv_binom_pmf(k, n1, q1, n2, q2):
     # Z = X + Y, where X ~ Bin(n1, q1), Y ~ Bin(n2, q2)
     return sum(
@@ -129,7 +127,7 @@ for a in markov_probs:
 # ----------------------
 
 plt.figure(figsize=(9, 5))
-# plt.yscale('log')
+plt.yscale('log')
 
 for a in markov_probs:
     # Datos
