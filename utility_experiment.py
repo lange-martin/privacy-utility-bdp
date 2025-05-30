@@ -336,7 +336,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
 
     # We add results using different thresholds for discretization. 
     # This changes the transition probabilities, and in turn the minimum epsilon for the Markov chain bound.
-    for threshold, color, marker in [(70, "palegreen", "1"), (60, "lime", "*")]:
+    for threshold, color, marker in [(70, "lime", "*"), (90, "palegreen", "1")]:
         discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=threshold*1000)
         trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
         print(f"Transition probabilities for threshold {threshold}:\n{trans_probs}")
@@ -368,7 +368,7 @@ def experiment_markov_electricity(time_period_hours=24, SAVE=False, show_plot_fl
                 return 1
             case "Markov (70)":
                 return 2
-            case "Markov (60)":
+            case "Markov (90)":
                 return 3
             case "DP Query":
                 return 4
@@ -385,7 +385,7 @@ def experiment_markov_electricity_long_version(time_period_hours=24, SAVE=False,
     """
     file_path = "datasets/electricity_consumption_dataverse_files/Electricity_P.csv"
 
-    for threshold in [60, 70, 80]:
+    for threshold in [90, 70, 80]:
         discretized_states_series = _load_and_discretize_electricity_data(file_path, time_period_hours, threshold=threshold*1000)
         trans_probs = _calculate_electricity_transition_matrix(discretized_states_series)
 
