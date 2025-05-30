@@ -5,7 +5,7 @@ This repository contains:
 1. `Balancing_Privacy_and_Utility_in_Correlated_Data_Long_Version.pdf` is the extended version of the submission that contains all the formal proofs of the results presented in the paper.
 2. The datasets used in the experiments.
 3. The source code for the utility experiments, as well as for any related plots, is found in `utility_experiment.py`.  
-4. File `plots_for_paper.py` contains code to generate the plots of the formulas represented in the paper.
+4. The code to generate the plots of the formulas represented in the paper.
 
 ### Security/Privacy Issues and Ethical Concerns
 
